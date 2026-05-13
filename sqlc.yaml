@@ -39,16 +39,31 @@ sql:
               pointer: true
           - db_type: "text"
             nullable: true
-            go_type:  "*string"
+            go_type:
+              type:    "string"
+              pointer: true
           - db_type: "bool"
             nullable: true
-            go_type:  "*bool"
+            go_type:
+              type:    "bool"
+              pointer: true
+          - db_type: "pg_catalog.bool"
+            nullable: true
+            go_type:
+              type:    "bool"
+              pointer: true
           - db_type: "pg_catalog.int2"
             go_type:  "int16"
           - db_type: "pg_catalog.int2"
             nullable: true
-            go_type:  "*int16"
+            go_type:
+              type:    "int16"
+              pointer: true
           - db_type: "jsonb"
-            go_type:  "[]byte"
+            go_type:
+              type:  "byte"
+              slice: true
           - db_type: "text[]"
-            go_type:  "[]string"
+            go_type:
+              type:  "string"
+              slice: true
