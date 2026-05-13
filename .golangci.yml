@@ -1,0 +1,55 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofumpt
+    - goimports
+    - gocritic
+    - gosec
+    - revive
+    - misspell
+    - bodyclose
+    - contextcheck
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocyclo
+    - nilerr
+    - nilnil
+    - prealloc
+    - unparam
+    - wastedassign
+    - whitespace
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  forbidigo:
+    forbid:
+      - p: ^fmt\.Println$
+        msg: "use slog for logging"
+      - p: ^panic\(
+        msg: "do not panic outside of main"
+      - p: ^os\.Getenv$
+        msg: "load env via internal/config"
+  gofumpt:
+    extra-rules: true
+
+issues:
+  exclude-rules:
+    - path: cmd/server/main\.go
+      linters:
+        - forbidigo
+    - path: _test\.go
+      linters:
+        - gosec
+        - gocyclo
+        - forbidigo
