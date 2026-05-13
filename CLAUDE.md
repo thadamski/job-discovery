@@ -17,6 +17,8 @@ general best-practice instincts. Hard constraints there are non-negotiable.
 - Go 1.23+, stdlib + `chi`. No Gin/Echo.
 - OpenAPI-first: edit `api/openapi.yaml` first, regenerate, then implement.
 - `sqlc` for data access. SQL in `internal/store/queries/`. No ORMs.
+- **No generator-specific types in app code.** No `pgtype.*`, no `openapi_types.*`. sqlc and oapi-codegen are configured with overrides so UUIDs are `google/uuid.UUID`, timestamps are `time.Time`, nullable scalars are pointers, jsonb is `[]byte`. Verify with `grep -rE 'pgtype\.|openapi_types\.' internal/ cmd/` returning empty. See **Code generation rules** in `plan.md`.
+- **sqlc queries use named params only**: `@col_name`, never `$1`/`$2`; nullable filters via `sqlc.narg('name')::<type>`.
 - `context.Context` is always the first parameter; never stored on structs.
 - Error wrap with `fmt.Errorf("doing X: %w", err)`. No `pkg/errors`.
 - `slog` JSON, `service`/`trace_id`/`request_id` always bound.

@@ -13,14 +13,42 @@ sql:
         emit_prepared_queries: false
         emit_exact_table_names: false
         emit_empty_slices: true
+        # No sqlc/pgtype types in app code. Every nullable column maps to a
+        # Go-native pointer; UUIDs use google/uuid; timestamps use time.Time;
+        # jsonb is raw []byte (decoded in the domain layer).
         overrides:
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"
-              type: "UUID"
+              type:   "UUID"
           - db_type: "uuid"
             nullable: true
             go_type:
-              import: "github.com/google/uuid"
-              type: "UUID"
+              import:  "github.com/google/uuid"
+              type:    "UUID"
               pointer: true
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type:   "Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              import:  "time"
+              type:    "Time"
+              pointer: true
+          - db_type: "text"
+            nullable: true
+            go_type:  "*string"
+          - db_type: "bool"
+            nullable: true
+            go_type:  "*bool"
+          - db_type: "pg_catalog.int2"
+            go_type:  "int16"
+          - db_type: "pg_catalog.int2"
+            nullable: true
+            go_type:  "*int16"
+          - db_type: "jsonb"
+            go_type:  "[]byte"
+          - db_type: "text[]"
+            go_type:  "[]string"
