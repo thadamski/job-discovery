@@ -19,6 +19,19 @@ general best-practice instincts. Hard constraints there are non-negotiable.
 - `sqlc` for data access. SQL in `internal/store/queries/`. No ORMs.
 - **No generator-specific types in app code.** No `pgtype.*`, no `openapi_types.*`. sqlc and oapi-codegen are configured with overrides so UUIDs are `google/uuid.UUID`, timestamps are `time.Time`, nullable scalars are pointers, jsonb is `[]byte`. Verify with `grep -rE 'pgtype\.|openapi_types\.' internal/ cmd/` returning empty. See **Code generation rules** in `plan.md`.
 - **sqlc queries use named params only**: `@col_name`, never `$1`/`$2`; nullable filters via `sqlc.narg('name')::<type>`.
+
+## Data layer — source of truth
+
+`migrations/*.sql` and `internal/store/queries/*.sql` are the source of truth
+for the data layer. To add or change a column or query:
+
+1. New migration file (`migrations/NNNN_<slug>.up.sql` + `.down.sql`).
+2. Edit/add the corresponding query in `internal/store/queries/`.
+3. `make generate` — regenerates `internal/store/db/` via sqlc.
+4. Adapt the domain layer to the new generated types.
+
+Never hand-write code in `internal/store/db/`. Never write Go code that
+touches the DB before the migration and the `.sql` query both exist.
 - `context.Context` is always the first parameter; never stored on structs.
 - Error wrap with `fmt.Errorf("doing X: %w", err)`. No `pkg/errors`.
 - `slog` JSON, `service`/`trace_id`/`request_id` always bound.

@@ -8,15 +8,22 @@ for agent context.
 
 ## Status
 
-Bootstrap only — no application code yet.
+Design pass complete: OpenAPI spec, migrations, sqlc queries. No application
+code yet — that arrives in the build pass.
 
 ## Quickstart
 
 ```bash
+make generate   # oapi-codegen + sqlc → internal/api, internal/store/db
 make lint
 make test
 make build
 ```
+
+Database migrations are applied via `golang-migrate` against the
+`DATABASE_URL`; in-cluster, CloudNativePG provisions the DB and the
+Deployment runs migrations on startup. See `plan.md` for the full deploy
+story.
 
 ## Layout
 
