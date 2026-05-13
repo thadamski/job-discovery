@@ -3,9 +3,12 @@ name: Release
 on:
   push:
     branches: [main]
+    tags: ['v*.*.*']
 
 jobs:
   release-please:
+    # Only meaningful on branch pushes; no-op on tag pushes.
+    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,8 +23,10 @@ jobs:
           release-type: go
 
   build-push:
-    needs: release-please
-    if: needs.release-please.outputs.release_created
+    needs: [release-please]
+    if: |
+      always() &&
+      (needs.release-please.outputs.release_created == 'true' || github.ref_type == 'tag')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,6 +48,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve tag
+        id: tag
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.ref_name }}"; fi
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         id: build
         uses: docker/build-push-action@v6
@@ -51,13 +63,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/thadamski/job-discovery:${{ needs.release-please.outputs.tag_name }}
+            ghcr.io/thadamski/job-discovery:${{ steps.tag.outputs.value }}
             ghcr.io/thadamski/job-discovery:latest
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ghcr.io/thadamski/job-discovery:${{ needs.release-please.outputs.tag_name }}
+          image: ghcr.io/thadamski/job-discovery:${{ steps.tag.outputs.value }}
           artifact-name: sbom.spdx.json
           output-file: sbom.spdx.json
 
