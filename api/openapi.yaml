@@ -1,0 +1,420 @@
+openapi: 3.0.3
+info:
+  title: job-discovery
+  version: 0.1.0
+  description: |
+    Pulls job listings from external boards (Greenhouse first; Lever and Ashby
+    later) into a service-owned Postgres, and emits
+    `jobhunt.listing.discovered` on NATS JetStream when a listing is newly
+    inserted.
+
+    All non-operational routes are versioned under `/api/v1/job-discovery/`.
+    Operational endpoints (`/healthz`, `/readyz`, `/metrics`) live at the root
+    and are intentionally not documented here.
+
+    Errors are returned as RFC 7807 problem details
+    (`application/problem+json`).
+  license:
+    name: MIT
+servers:
+  - url: http://job-discovery.job-hunt.svc.cluster.local
+    description: In-cluster service URL
+  - url: http://localhost:8080
+    description: Local dev
+
+tags:
+  - name: refresh
+    description: Trigger fetches against external job boards.
+  - name: companies
+    description: Manage the target-company list backing fetches.
+  - name: listings
+    description: Read and update discovered listings.
+
+paths:
+  /api/v1/job-discovery/refresh:
+    post:
+      tags: [refresh]
+      operationId: triggerRefresh
+      summary: Trigger a fetch against external job boards.
+      description: |
+        Fetches listings for every active, verified company, or for a single
+        company if `company_id` is supplied. A company whose `verified: false`
+        flag is set in the content-repo `companies.yaml` will be skipped even
+        if `active=true` in the DB; the response reports it under `skipped`.
+
+        Returns synchronously with per-company counts. Newly inserted listings
+        emit `jobhunt.listing.discovered` on NATS before this call returns.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refresh completed (may include per-company errors).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/job-discovery/companies:
+    get:
+      tags: [companies]
+      operationId: listCompanies
+      summary: List target companies.
+      parameters:
+        - in: query
+          name: active
+          schema: { type: boolean }
+          description: Filter by `active` flag. Omit to return all.
+        - in: query
+          name: board_kind
+          schema: { $ref: '#/components/schemas/BoardKind' }
+      responses:
+        '200':
+          description: Company list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Company' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [companies]
+      operationId: createCompany
+      summary: Register a new target company.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyCreate' }
+      responses:
+        '201':
+          description: Company created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Company' }
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+              description: Canonical URL of the new company.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/job-discovery/listings:
+    get:
+      tags: [listings]
+      operationId: listListings
+      summary: List discovered listings.
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/ListingStatus' }
+        - in: query
+          name: company
+          description: Filter by company UUID or `board_slug`.
+          schema: { type: string }
+        - in: query
+          name: min_score
+          description: |
+            Only return listings whose latest score (from `job-scoring`) is at
+            least this value. Requires an inter-service call; omit for the
+            fast path. Range 0.0-10.0.
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 10
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Listing page.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Listing' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/job-discovery/listings/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [listings]
+      operationId: getListing
+      summary: Fetch a single listing.
+      responses:
+        '200':
+          description: Listing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Listing' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      tags: [listings]
+      operationId: updateListing
+      summary: Update mutable listing fields (currently `status` only).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingUpdate' }
+      responses:
+        '200':
+          description: Updated listing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Listing' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+  schemas:
+    BoardKind:
+      type: string
+      enum: [greenhouse, lever, ashby]
+      description: External job-board provider.
+
+    ListingStatus:
+      type: string
+      enum:
+        - new
+        - filtered_out
+        - scored
+        - shortlisted
+        - applied
+        - closed
+        - passed
+
+    Company:
+      type: object
+      required: [id, name, board_kind, board_slug, priority, tags, active, created_at]
+      properties:
+        id:         { type: string, format: uuid, readOnly: true }
+        name:       { type: string, minLength: 1 }
+        board_kind: { $ref: '#/components/schemas/BoardKind' }
+        board_slug:
+          type: string
+          minLength: 1
+          description: The company's identifier on the chosen board (e.g. `stripe` for `boards.greenhouse.io/stripe`).
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 2
+        tags:
+          type: array
+          items: { type: string }
+          default: []
+        notes:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CompanyCreate:
+      type: object
+      required: [name, board_kind, board_slug]
+      properties:
+        name:       { type: string, minLength: 1 }
+        board_kind: { $ref: '#/components/schemas/BoardKind' }
+        board_slug: { type: string, minLength: 1 }
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 2
+        tags:
+          type: array
+          items: { type: string }
+        notes:
+          type: string
+        active:
+          type: boolean
+          default: true
+
+    Listing:
+      type: object
+      required:
+        - id
+        - company_id
+        - external_id
+        - title
+        - url
+        - description
+        - status
+        - fetched_at
+      properties:
+        id:          { type: string, format: uuid, readOnly: true }
+        company_id:  { type: string, format: uuid }
+        external_id:
+          type: string
+          description: The board's native ID; unique per `(company_id, external_id)`.
+        title:       { type: string }
+        location:
+          type: string
+          nullable: true
+        url:         { type: string, format: uri }
+        description: { type: string }
+        raw_payload:
+          type: object
+          additionalProperties: true
+          description: Full board response, retained for re-extraction.
+        posted_at:
+          type: string
+          format: date-time
+          nullable: true
+        fetched_at:
+          type: string
+          format: date-time
+          readOnly: true
+        status:      { $ref: '#/components/schemas/ListingStatus' }
+
+    ListingUpdate:
+      type: object
+      description: Patch document. At least one field must be present.
+      minProperties: 1
+      properties:
+        status: { $ref: '#/components/schemas/ListingStatus' }
+
+    RefreshRequest:
+      type: object
+      description: Empty body means "all active+verified companies".
+      properties:
+        company_id:
+          type: string
+          format: uuid
+          description: If set, only refresh this company.
+        board_kind:
+          $ref: '#/components/schemas/BoardKind'
+          description: If set, only refresh companies on this board (ignored when `company_id` is set).
+
+    CompanyRefreshOutcome:
+      type: object
+      required: [company_id, name, board_kind, board_slug, listings_seen, listings_new]
+      properties:
+        company_id:    { type: string, format: uuid }
+        name:          { type: string }
+        board_kind:    { $ref: '#/components/schemas/BoardKind' }
+        board_slug:    { type: string }
+        listings_seen: { type: integer, minimum: 0 }
+        listings_new:  { type: integer, minimum: 0 }
+        error:
+          type: string
+          nullable: true
+          description: Set when this company failed; other counts will be 0.
+
+    SkippedCompany:
+      type: object
+      required: [company_id, name, reason]
+      properties:
+        company_id: { type: string, format: uuid }
+        name:       { type: string }
+        reason:
+          type: string
+          enum: [unverified, inactive, board_unsupported]
+
+    RefreshResult:
+      type: object
+      required: [started_at, finished_at, companies, skipped, totals]
+      properties:
+        started_at:  { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+        companies:
+          type: array
+          items: { $ref: '#/components/schemas/CompanyRefreshOutcome' }
+        skipped:
+          type: array
+          items: { $ref: '#/components/schemas/SkippedCompany' }
+        totals:
+          type: object
+          required: [companies_fetched, listings_seen, listings_new, errors]
+          properties:
+            companies_fetched: { type: integer, minimum: 0 }
+            listings_seen:     { type: integer, minimum: 0 }
+            listings_new:      { type: integer, minimum: 0 }
+            errors:            { type: integer, minimum: 0 }
+
+    Problem:
+      type: object
+      description: RFC 7807 problem details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          default: about:blank
+          description: A URI reference identifying the problem type.
+        title:
+          type: string
+          description: Short, human-readable summary.
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence.
+        instance:
+          type: string
+          format: uri-reference
+          description: URI reference identifying the specific occurrence.
+        request_id:
+          type: string
+          description: Echo of the `X-Request-ID` header for correlation.
+
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Conflicts with existing resource (e.g. unique constraint).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    UnprocessableEntity:
+      description: Request well-formed but semantically invalid (e.g. illegal status transition).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
