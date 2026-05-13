@@ -3,7 +3,7 @@
 BINARY := job-discovery
 PKG    := ./...
 
-.PHONY: all build test lint generate run tidy clean
+.PHONY: all build test test-integration lint generate run tidy clean
 
 all: lint test build
 
@@ -12,6 +12,9 @@ build:
 
 test:
 	go test -race -coverprofile=cover.out $(PKG)
+
+test-integration:
+	go test -race -tags integration -coverprofile=cover.out $(PKG)
 
 lint:
 	golangci-lint run --timeout=5m
