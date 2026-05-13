@@ -28,7 +28,7 @@ type Listing struct {
 	ExternalID  string     `json:"external_id"`
 	Title       string     `json:"title"`
 	Location    *string    `json:"location"`
-	URL         string     `json:"url"`
+	Url         string     `json:"url"`
 	Description string     `json:"description"`
 	RawPayload  []byte     `json:"raw_payload"`
 	PostedAt    *time.Time `json:"posted_at"`

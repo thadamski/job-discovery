@@ -12,6 +12,31 @@ import (
 	"github.com/google/uuid"
 )
 
+const getListing = `-- name: GetListing :one
+SELECT id, company_id, external_id, title, location, url, description, raw_payload, posted_at, fetched_at, status
+FROM listings
+WHERE id = $1
+`
+
+func (q *Queries) GetListing(ctx context.Context, id uuid.UUID) (Listing, error) {
+	row := q.db.QueryRow(ctx, getListing, id)
+	var i Listing
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.ExternalID,
+		&i.Title,
+		&i.Location,
+		&i.Url,
+		&i.Description,
+		&i.RawPayload,
+		&i.PostedAt,
+		&i.FetchedAt,
+		&i.Status,
+	)
+	return i, err
+}
+
 const insertListingIfNew = `-- name: InsertListingIfNew :one
 INSERT INTO listings (
     company_id, external_id, title, location, url, description, raw_payload, posted_at
@@ -19,27 +44,31 @@ INSERT INTO listings (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
 ON CONFLICT (company_id, external_id) DO NOTHING
-RETURNING id, company_id, external_id, title, location, url, description, raw_payload, posted_at, fetched_at, status`
+RETURNING id, company_id, external_id, title, location, url, description, raw_payload, posted_at, fetched_at, status
+`
 
 type InsertListingIfNewParams struct {
 	CompanyID   uuid.UUID  `json:"company_id"`
 	ExternalID  string     `json:"external_id"`
 	Title       string     `json:"title"`
 	Location    *string    `json:"location"`
-	URL         string     `json:"url"`
+	Url         string     `json:"url"`
 	Description string     `json:"description"`
 	RawPayload  []byte     `json:"raw_payload"`
 	PostedAt    *time.Time `json:"posted_at"`
 }
 
+// Returns the inserted row, or no rows when (company_id, external_id)
+// already exists. Callers MUST treat ErrNoRows as "duplicate, not a first
+// insert" — this is the signal used to gate jobhunt.listing.discovered
+// publishing.
 func (q *Queries) InsertListingIfNew(ctx context.Context, arg InsertListingIfNewParams) (Listing, error) {
-	row := q.db.QueryRow(
-		ctx, insertListingIfNew,
+	row := q.db.QueryRow(ctx, insertListingIfNew,
 		arg.CompanyID,
 		arg.ExternalID,
 		arg.Title,
 		arg.Location,
-		arg.URL,
+		arg.Url,
 		arg.Description,
 		arg.RawPayload,
 		arg.PostedAt,
@@ -51,31 +80,7 @@ func (q *Queries) InsertListingIfNew(ctx context.Context, arg InsertListingIfNew
 		&i.ExternalID,
 		&i.Title,
 		&i.Location,
-		&i.URL,
-		&i.Description,
-		&i.RawPayload,
-		&i.PostedAt,
-		&i.FetchedAt,
-		&i.Status,
-	)
-	return i, err
-}
-
-const getListing = `-- name: GetListing :one
-SELECT id, company_id, external_id, title, location, url, description, raw_payload, posted_at, fetched_at, status
-FROM listings
-WHERE id = $1`
-
-func (q *Queries) GetListing(ctx context.Context, id uuid.UUID) (Listing, error) {
-	row := q.db.QueryRow(ctx, getListing, id)
-	var i Listing
-	err := row.Scan(
-		&i.ID,
-		&i.CompanyID,
-		&i.ExternalID,
-		&i.Title,
-		&i.Location,
-		&i.URL,
+		&i.Url,
 		&i.Description,
 		&i.RawPayload,
 		&i.PostedAt,
@@ -93,32 +98,34 @@ WHERE ($1::text     IS NULL OR l.status     = $1::text)
   AND ($2::uuid IS NULL OR l.company_id = $2::uuid)
   AND ($3::text IS NULL OR c.board_slug = $3::text)
 ORDER BY l.fetched_at DESC
-LIMIT  $4
-OFFSET $5`
+LIMIT  $5
+OFFSET $4
+`
 
 type ListListingsParams struct {
 	Status    *string    `json:"status"`
 	CompanyID *uuid.UUID `json:"company_id"`
 	BoardSlug *string    `json:"board_slug"`
-	Lim       int32      `json:"lim"`
 	Off       int32      `json:"off"`
+	Lim       int32      `json:"lim"`
 }
 
+// min_score is intentionally NOT in this query: scores live in the
+// job-scoring service. The handler calls job-scoring over HTTP and
+// intersects the result client-side when min_score is set.
 func (q *Queries) ListListings(ctx context.Context, arg ListListingsParams) ([]Listing, error) {
-	rows, err := q.db.Query(
-		ctx, listListings,
+	rows, err := q.db.Query(ctx, listListings,
 		arg.Status,
 		arg.CompanyID,
 		arg.BoardSlug,
-		arg.Lim,
 		arg.Off,
+		arg.Lim,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var items []Listing
+	items := []Listing{}
 	for rows.Next() {
 		var i Listing
 		if err := rows.Scan(
@@ -127,7 +134,7 @@ func (q *Queries) ListListings(ctx context.Context, arg ListListingsParams) ([]L
 			&i.ExternalID,
 			&i.Title,
 			&i.Location,
-			&i.URL,
+			&i.Url,
 			&i.Description,
 			&i.RawPayload,
 			&i.PostedAt,
@@ -148,7 +155,8 @@ const updateListingStatus = `-- name: UpdateListingStatus :one
 UPDATE listings
 SET status = $1
 WHERE id = $2
-RETURNING id, company_id, external_id, title, location, url, description, raw_payload, posted_at, fetched_at, status`
+RETURNING id, company_id, external_id, title, location, url, description, raw_payload, posted_at, fetched_at, status
+`
 
 type UpdateListingStatusParams struct {
 	Status string    `json:"status"`
@@ -164,7 +172,7 @@ func (q *Queries) UpdateListingStatus(ctx context.Context, arg UpdateListingStat
 		&i.ExternalID,
 		&i.Title,
 		&i.Location,
-		&i.URL,
+		&i.Url,
 		&i.Description,
 		&i.RawPayload,
 		&i.PostedAt,

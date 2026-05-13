@@ -108,7 +108,7 @@ func dbListingToAPI(l db.Listing) Listing {
 		ExternalId:  l.ExternalID,
 		Title:       l.Title,
 		Location:    l.Location,
-		Url:         l.URL,
+		Url:         l.Url,
 		Description: l.Description,
 		PostedAt:    l.PostedAt,
 		FetchedAt:   &at,

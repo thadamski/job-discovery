@@ -86,7 +86,7 @@ func refreshCompany(ctx context.Context, st store.Store, pub *events.Publisher, 
 			ExternalID:  fl.ExternalID,
 			Title:       fl.Title,
 			Location:    fl.Location,
-			URL:         fl.URL,
+			Url:         fl.URL,
 			Description: fl.Description,
 			RawPayload:  fl.RawPayload,
 			PostedAt:    fl.PostedAt,
@@ -104,7 +104,7 @@ func refreshCompany(ctx context.Context, st store.Store, pub *events.Publisher, 
 				ListingID:   inserted.ID,
 				CompanyName: company.Name,
 				Title:       inserted.Title,
-				URL:         inserted.URL,
+				URL:         inserted.Url,
 			}
 
 			if pubErr := pub.PublishListingDiscovered(ctx, evt); pubErr != nil {
