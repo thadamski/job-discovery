@@ -1,0 +1,80 @@
+---
+# Deny all ingress and egress by default within this namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: job-hunt
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow Hermes agents to reach job-discovery on port 8080.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-hermes-ingress
+  namespace: job-hunt
+spec:
+  podSelector:
+    matchLabels:
+      app: job-discovery
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hermes-work
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# Allow job-discovery to reach its CloudNativePG cluster and NATS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-job-discovery-egress
+  namespace: job-hunt
+spec:
+  podSelector:
+    matchLabels:
+      app: job-discovery
+  policyTypes:
+    - Egress
+  egress:
+    # PostgreSQL within the same namespace (CloudNativePG)
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 5432
+          protocol: TCP
+    # NATS JetStream
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform
+      ports:
+        - port: 4222
+          protocol: TCP
+    # External HTTPS for Greenhouse / Lever / Ashby job board APIs
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

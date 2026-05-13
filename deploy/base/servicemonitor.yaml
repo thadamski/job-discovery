@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: job-discovery
+  namespace: job-hunt
+  labels:
+    app: job-discovery
+spec:
+  selector:
+    matchLabels:
+      app: job-discovery
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
