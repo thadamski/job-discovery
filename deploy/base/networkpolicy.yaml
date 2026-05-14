@@ -94,12 +94,18 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # Kubernetes API server (ClusterIP 10.43.0.1 on k3s)
+    # Kubernetes API server — ClusterIP (10.43.0.1:443) and the post-DNAT
+    # node endpoint (10.0.0.51:6443). k3s evaluates NetworkPolicy after DNAT
+    # so both addresses must be allowed.
     - to:
         - ipBlock:
             cidr: 10.43.0.1/32
+        - ipBlock:
+            cidr: 10.0.0.51/32
       ports:
         - port: 443
+          protocol: TCP
+        - port: 6443
           protocol: TCP
     # Peer replication within the namespace
     - to:
@@ -109,9 +115,11 @@ spec:
       ports:
         - port: 5432
           protocol: TCP
-    # DNS
+    # DNS — CoreDNS lives in kube-system
     - to:
-        - namespaceSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
       ports:
         - port: 53
           protocol: UDP
