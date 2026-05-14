@@ -79,6 +79,30 @@ spec:
         - port: 53
           protocol: TCP
 ---
+# Allow job-discovery and CNPG peer pods to reach the database on port 5432.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-ingress
+  namespace: job-hunt
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: job-discovery-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: job-discovery
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: job-discovery-db
+      ports:
+        - port: 5432
+          protocol: TCP
+---
 # Allow CloudNativePG instance pods to reach the Kubernetes API server
 # and peer pods. The CNPG manager communicates with the API server for
 # cluster status watches; blocking it causes initdb to fail.
