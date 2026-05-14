@@ -6,4 +6,3 @@ resources:
   - networkpolicy.yaml
   - deployment.yaml
   - service.yaml
-  - servicemonitor.yaml
