@@ -1,0 +1,20 @@
+name: Make GHCR package public
+
+on:
+  workflow_dispatch:
+
+jobs:
+  set-public:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Set package visibility to public
+        run: |
+          curl -sS --fail-with-body \
+            -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user/packages/container/job-discovery \
+            -d '{"visibility":"public"}' \
+            | head -5
