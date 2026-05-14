@@ -80,3 +80,12 @@ jobs:
         run: |
           cosign sign --yes \
             ghcr.io/thadamski/job-discovery@${{ steps.build.outputs.digest }}
+
+      - name: Make package public
+        run: |
+          curl -sS --fail-with-body \
+            -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GHCR_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user/packages/container/job-discovery \
+            -d '{"visibility":"public"}' || echo "package visibility update skipped (GHCR_PAT not set)"
