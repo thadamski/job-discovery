@@ -26,11 +26,11 @@ jobs:
           go generate ./...
           git diff --exit-code
 
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
+        run: golangci-lint run --timeout=5m
 
       - name: Test
         run: go test -race -coverprofile=cover.out ./...
