@@ -27,7 +27,8 @@ jobs:
         if: steps.release.outputs.pr != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr merge --auto --merge "${{ steps.release.outputs.pr }}" --repo "${{ github.repository }}"
+          PR_NUMBER: ${{ fromJson(steps.release.outputs.pr).number }}
+        run: gh pr merge --auto --merge "$PR_NUMBER" --repo "${{ github.repository }}"
 
   build-push:
     needs: [release-please]
