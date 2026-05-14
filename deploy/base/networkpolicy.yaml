@@ -90,7 +90,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      postgresql.cnpg.io/cluster: job-discovery-db
+      cnpg.io/cluster: job-discovery-db
   policyTypes:
     - Egress
   egress:
@@ -105,7 +105,7 @@ spec:
     - to:
         - podSelector:
             matchLabels:
-              postgresql.cnpg.io/cluster: job-discovery-db
+              cnpg.io/cluster: job-discovery-db
       ports:
         - port: 5432
           protocol: TCP
