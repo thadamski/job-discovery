@@ -78,3 +78,42 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
+---
+# Allow CloudNativePG instance pods to reach the Kubernetes API server
+# and peer pods. The CNPG manager communicates with the API server for
+# cluster status watches; blocking it causes initdb to fail.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cnpg-egress
+  namespace: job-hunt
+spec:
+  podSelector:
+    matchLabels:
+      postgresql.cnpg.io/cluster: job-discovery-db
+  policyTypes:
+    - Egress
+  egress:
+    # Kubernetes API server (ClusterIP 10.43.0.1 on k3s)
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.1/32
+      ports:
+        - port: 443
+          protocol: TCP
+    # Peer replication within the namespace
+    - to:
+        - podSelector:
+            matchLabels:
+              postgresql.cnpg.io/cluster: job-discovery-db
+      ports:
+        - port: 5432
+          protocol: TCP
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
