@@ -252,8 +252,12 @@ type ListListingsParams struct {
 	// least this value. Requires an inter-service call; omit for the
 	// fast path. Range 0.0-10.0.
 	MinScore *float32 `form:"min_score,omitempty" json:"min_score,omitempty"`
-	Limit    *int     `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset   *int     `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Page 1-based page number.
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// PageSize Number of results per page.
+	PageSize *int `form:"page_size,omitempty" json:"page_size,omitempty"`
 }
 
 // CreateCompanyJSONRequestBody defines body for CreateCompany for application/json ContentType.
@@ -444,28 +448,28 @@ func (siw *ServerInterfaceWrapper) ListListings(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Optional query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
 		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
 		}
 		return
 	}
 
-	// ------------- Optional query parameter "offset" -------------
+	// ------------- Optional query parameter "page_size" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", r.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page_size", r.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "offset"})
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page_size"})
 		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page_size", Err: err})
 		}
 		return
 	}

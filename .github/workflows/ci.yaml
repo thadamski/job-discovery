@@ -47,3 +47,38 @@ jobs:
         with:
           context: .
           push: false
+
+  migration-idempotency:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: job_discovery
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install golang-migrate
+        run: |
+          curl -sSfL https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar -xz
+          sudo mv migrate /usr/local/bin/migrate
+
+      - name: Run migrations (first pass)
+        run: migrate -path ./migrations -database "postgres://postgres:test@localhost:5432/job_discovery?sslmode=disable" up
+
+      - name: Run migrations again (idempotency check)
+        run: migrate -path ./migrations -database "postgres://postgres:test@localhost:5432/job_discovery?sslmode=disable" up
+
+      - name: Verify schema is correct
+        run: |
+          PGPASSWORD=test psql -h localhost -U postgres -d job_discovery -c "\dt"

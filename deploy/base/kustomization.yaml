@@ -6,3 +6,4 @@ resources:
   - networkpolicy.yaml
   - deployment.yaml
   - service.yaml
+  - migrations-configmap.yaml

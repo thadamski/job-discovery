@@ -171,7 +171,7 @@ func (h *AppHandler) CreateCompany(ctx context.Context, request CreateCompanyReq
 		active = *body.Active
 	}
 
-	var tags []string
+	tags := []string{}
 	if body.Tags != nil {
 		tags = *body.Tags
 	}
@@ -209,15 +209,17 @@ func (h *AppHandler) CreateCompany(ctx context.Context, request CreateCompanyReq
 func (h *AppHandler) ListListings(ctx context.Context, request ListListingsRequestObject) (ListListingsResponseObject, error) {
 	params := request.Params
 
-	limit := int32(100)
-	if params.Limit != nil && *params.Limit > 0 {
-		limit = int32(*params.Limit) //nolint:gosec // limit is bounded 1-500 by OpenAPI schema
+	pageSize := int32(100)
+	if params.PageSize != nil && *params.PageSize > 0 {
+		pageSize = int32(*params.PageSize) //nolint:gosec // page_size is bounded 1-500 by OpenAPI schema
 	}
 
-	offset := int32(0)
-	if params.Offset != nil && *params.Offset > 0 {
-		offset = int32(*params.Offset) //nolint:gosec // offset is non-negative by OpenAPI schema
+	page := int32(1)
+	if params.Page != nil && *params.Page > 0 {
+		page = int32(*params.Page) //nolint:gosec // page is 1-based, minimum 1 by OpenAPI schema
 	}
+
+	offset := (page - 1) * pageSize
 
 	var statusFilter *string
 	if params.Status != nil {
@@ -241,7 +243,7 @@ func (h *AppHandler) ListListings(ctx context.Context, request ListListingsReque
 		Status:    statusFilter,
 		CompanyID: companyIDFilter,
 		BoardSlug: boardSlugFilter,
-		Lim:       limit,
+		Lim:       pageSize,
 		Off:       offset,
 	})
 	if err != nil {

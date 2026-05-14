@@ -19,6 +19,27 @@ spec:
         runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: migrate/migrate:4
+          args:
+            - -path=/migrations
+            - -database=$(POSTGRES_DSN)
+            - up
+          env:
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: job-discovery-db-app
+                  key: uri
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
       containers:
         - name: job-discovery
           image: ghcr.io/thadamski/job-discovery:latest
@@ -59,3 +80,7 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
+      volumes:
+        - name: migrations
+          configMap:
+            name: job-discovery-migrations

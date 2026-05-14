@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -66,7 +67,7 @@ func run() error {
 
 	r.Use(chimw.RequestID)
 	r.Use(requestIDMiddleware)
-	r.Use(slogMiddleware(log))
+	r.Use(slogMiddleware(o))
 	r.Use(chimw.Recoverer)
 	r.Use(func(next http.Handler) http.Handler {
 		return otelhttp.NewHandler(next, "job-discovery")
@@ -132,19 +133,31 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// slogMiddleware logs each request with method, path, status, and duration.
-func slogMiddleware(log *slog.Logger) func(http.Handler) http.Handler {
+// slogMiddleware logs each request with method, path, status, and duration,
+// and records HTTP metrics.
+func slogMiddleware(o *obs.Obs) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ww := chimw.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(ww, r)
-			log.InfoContext(
+			elapsed := time.Since(start)
+
+			route := r.URL.Path
+			if rctx := chi.RouteContext(r.Context()); rctx != nil && rctx.RoutePattern() != "" {
+				route = rctx.RoutePattern()
+			}
+			status := strconv.Itoa(ww.Status())
+
+			o.HTTPRequestsTotal.WithLabelValues(route, r.Method, status).Inc()
+			o.HTTPRequestDuration.WithLabelValues(route, r.Method).Observe(elapsed.Seconds())
+
+			o.Logger.InfoContext(
 				r.Context(), "http request",
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Int("status", ww.Status()),
-				slog.Duration("duration", time.Since(start)),
+				slog.Duration("duration", elapsed),
 				slog.String("request_id", apihandlers.RequestIDFromCtx(r.Context())),
 			)
 		})

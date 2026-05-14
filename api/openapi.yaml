@@ -131,18 +131,20 @@ paths:
             minimum: 0
             maximum: 10
         - in: query
-          name: limit
+          name: page
+          description: 1-based page number.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          description: Number of results per page.
           schema:
             type: integer
             minimum: 1
             maximum: 500
             default: 100
-        - in: query
-          name: offset
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
       responses:
         '200':
           description: Listing page.
