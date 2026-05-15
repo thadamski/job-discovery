@@ -11,7 +11,9 @@ spec:
     - Ingress
     - Egress
 ---
-# Allow Hermes agents to reach job-discovery on port 8080.
+# Allow Hermes (personal) agents to reach job-discovery on port 8080.
+# Scoped to hermes-personal only — hermes-work has no business touching
+# job-hunt services. See homelab-fleet plan.md "hermes-personal — MVP design".
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -27,7 +29,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: hermes-work
+              kubernetes.io/metadata.name: hermes-personal
       ports:
         - port: 8080
           protocol: TCP
