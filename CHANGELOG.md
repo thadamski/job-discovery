@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/thadamski/job-discovery/compare/v0.1.1...v0.1.2) (2026-05-15)
+
+
+### Bug Fixes
+
+* **security:** scope job-hunt ingress to hermes-personal only ([c92bf38](https://github.com/thadamski/job-discovery/commit/c92bf3835943f9b0463f657f802dc79ce7f18d4e))
+
 ## [0.1.1](https://github.com/thadamski/job-discovery/compare/v0.1.0...v0.1.1) (2026-05-14)
 
 
