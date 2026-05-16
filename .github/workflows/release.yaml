@@ -40,11 +40,17 @@ jobs:
       # workflow still functions, but the resulting release PR will sit
       # awaiting a human merge (which then triggers the next run as
       # normal).
+      # NB: `env:` is evaluated before `if:`, so `fromJson(steps.release.outputs.pr).number`
+      # is parsed on every run even when no release PR was opened (e.g. Flux
+      # ImageUpdateAutomation commits, docs-only pushes). The conditional in the
+      # expression below short-circuits to '' in that case, avoiding the
+      # "Error reading JToken" failure that would otherwise turn every non-release
+      # push into a red CI run.
       - name: Auto-merge release PR
         if: steps.release.outputs.pr != ''
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT || secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ fromJson(steps.release.outputs.pr).number }}
+          PR_NUMBER: ${{ steps.release.outputs.pr != '' && fromJson(steps.release.outputs.pr).number || '' }}
         run: gh pr merge --auto --merge "$PR_NUMBER" --repo "${{ github.repository }}"
 
   build-push:
