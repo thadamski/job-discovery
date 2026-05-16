@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/thadamski/job-discovery/compare/v0.1.2...v0.1.3) (2026-05-16)
+
+
+### Bug Fixes
+
+* **ci:** guard fromJson against empty release-please pr output ([812f4f1](https://github.com/thadamski/job-discovery/commit/812f4f173981c9d79da687da53e41a405c3b5f6f))
+
 ## [0.1.2](https://github.com/thadamski/job-discovery/compare/v0.1.1...v0.1.2) (2026-05-15)
 
 
