@@ -23,10 +23,27 @@ jobs:
         with:
           release-type: go
 
+      # Auto-merge the release-please PR using a PAT when one is configured.
+      #
+      # The default GITHUB_TOKEN is intentionally restricted: pushes/merges
+      # performed with it do NOT trigger downstream workflows (GitHub's
+      # loop-prevention rule). That breaks release-please's tag-on-merge
+      # flow — the chore(release) commit lands on main but no Release run
+      # fires, so the tag is never created and no image is built.
+      #
+      # The PAT (repo secret `RELEASE_PLEASE_PAT`, scope: `repo`) bypasses
+      # that rule: the merge push it produces triggers the next Release
+      # run, which (a) sees the just-merged release PR and creates the
+      # vX.Y.Z tag, and (b) the tag push triggers the build-push job.
+      #
+      # If the PAT is unset the step falls back to GITHUB_TOKEN — the
+      # workflow still functions, but the resulting release PR will sit
+      # awaiting a human merge (which then triggers the next run as
+      # normal).
       - name: Auto-merge release PR
         if: steps.release.outputs.pr != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ fromJson(steps.release.outputs.pr).number }}
         run: gh pr merge --auto --merge "$PR_NUMBER" --repo "${{ github.repository }}"
 
