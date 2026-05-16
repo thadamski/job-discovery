@@ -6,7 +6,7 @@ resources:
 namespace: job-hunt
 images:
   - name: ghcr.io/thadamski/job-discovery
-    newTag: latest # {"$imagepolicy": "flux-system:job-discovery:tag"}
+    newTag: v0.1.1 # {"$imagepolicy": "flux-system:job-discovery:tag"}
 patches:
   - patch: |-
       - op: add
