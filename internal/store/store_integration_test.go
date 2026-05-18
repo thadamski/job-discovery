@@ -27,7 +27,8 @@ func migrationsDir() string {
 func TestStoreIntegration(t *testing.T) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.Run(ctx,
+	pgContainer, err := postgres.Run(
+		ctx,
 		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("test"),

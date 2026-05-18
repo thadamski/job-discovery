@@ -1,9 +1,23 @@
 # job-discovery — see CLAUDE.md and the canonical plan referenced therein.
 
-BINARY := job-discovery
-PKG    := ./...
+BINARY  := job-discovery
+PKG     := ./...
+COMPOSE := docker compose
 
-.PHONY: all build test test-integration lint generate run tidy clean
+.PHONY: qa qa-build fmt build-image all build test test-integration lint generate run tidy clean
+
+## Docker-based QA (run before every commit)
+qa: ## Full CI check suite in Docker
+	$(COMPOSE) run --rm dev ./qa.sh
+
+qa-build: ## Rebuild the dev container image
+	$(COMPOSE) build dev
+
+fmt: ## Format code with gofumpt
+	$(COMPOSE) run --rm dev gofumpt -w .
+
+build-image: ## Build Docker image locally (mirrors CI docker/build-push-action)
+	docker build .
 
 all: lint test build
 

@@ -1,0 +1,30 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    working_dir: /src
+    volumes:
+      - .:/src
+      - go-pkg:/root/go/pkg/mod
+      - go-build:/root/.cache/go-build
+    environment:
+      - POSTGRES_DSN=postgres://postgres:test@postgres:5432/job_discovery?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: job_discovery
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  go-pkg:
+  go-build:
