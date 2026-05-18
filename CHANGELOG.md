@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/thadamski/job-discovery/compare/v0.1.3...v0.1.4) (2026-05-18)
+
+
+### Bug Fixes
+
+* **dev:** add Docker QA gate; configure git safe.directory so qa generate-clean check works in container ([4bdb070](https://github.com/thadamski/job-discovery/commit/4bdb0706cf03d649f7d5a7f7cf8682f6b16a07db))
+
 ## [0.1.3](https://github.com/thadamski/job-discovery/compare/v0.1.2...v0.1.3) (2026-05-16)
 
 
